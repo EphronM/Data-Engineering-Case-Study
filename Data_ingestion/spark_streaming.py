@@ -2,48 +2,78 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import from_json, col
 from pyspark.sql.types import StructType, StringType
 from pyspark.sql.functions import when
+from pyspark.sql.functions import to_timestamp, month, lit
+from prometheus_client import start_http_server, Counter
+
+# Define Prometheus metrics
+processed_ad_impressions_counter = Counter('processed_ad_impressions', 'Number of processed ad impressions')
+processed_clicks_conversions_counter = Counter('processed_clicks_conversions', 'Number of processed clicks/conversions')
+processed_bid_requests_counter = Counter('processed_bid_requests', 'Number of processed bid requests')
+
+
+
 
 def process_ad_impressions(ad_impressions_df, batch_id):
-    # Basic data processing for ad impressions
-    ad_impressions_processed_df = ad_impressions_df \
-        .withColumn("processed_data", when(col("ad_creative_id").isNull(), "invalid").otherwise("valid"))
+    # Extract month from timestamp
+    ad_impressions_df = ad_impressions_df.withColumn("month", month(to_timestamp("timestamp")))
+    
+    # Add a new field
+    ad_impressions_df = ad_impressions_df.withColumn("platform", lit("web"))
+    
+    # Print the modified DataFrame
+    print(f"Processed Ad Impressions batch #{batch_id}:")
+    ad_impressions_df.show(5)
 
-    # Show processed data and write to storage
-    print(f"Processed Batch-{batch_id} Ad Impressions:")
-    ad_impressions_processed_df.show(5)
+    # Increment Prometheus counter
+    processed_ad_impressions_counter.inc(ad_impressions_df.count())
 
-    # Store processed data locally (example: writing to Parquet files)
-    ad_impressions_processed_df.write.mode('append').parquet("processed_data/ad_impressions")
+    # Store processed data locally
+    ad_impressions_df.write.mode('append').parquet("processed_data/ad_impressions")
+
 
 def process_clicks_conversions(clicks_conversions_df, batch_id):
-    # Basic data processing for clicks/conversions
-    clicks_conversions_processed_df = clicks_conversions_df \
-        .withColumn("processed_data", when(col("ad_campaign_id").isNull(), "invalid").otherwise("valid"))
+    # Extract month from timestamp
+    clicks_conversions_df = clicks_conversions_df.withColumn("month", month(to_timestamp("timestamp")))
+    
+    # Add a new field
+    clicks_conversions_df = clicks_conversions_df.withColumn("event_type", lit("click"))
+    
+    # Print the modified DataFrame
+    print(f"Processed Clicks/Conversions batch #{batch_id}:")
+    clicks_conversions_df.show(5)
 
-    # Show processed data and write to storage
-    print(f"Processed-{batch_id}  Clicks/Conversions:")
-    clicks_conversions_processed_df.show(5)
+    # Increment Prometheus counter
+    processed_clicks_conversions_counter.inc(clicks_conversions_df.count())
 
-    # Store processed data locally (example: writing to Parquet files)
-    clicks_conversions_processed_df.write.mode('append').parquet("processed_data/clicks_conversions")
+    # Store processed data locally
+    clicks_conversions_df.write.mode('append').parquet("processed_data/clicks_conversions")
 
 def process_bid_requests(bid_requests_df, batch_id):
-    # Basic data processing for bid requests
-    bid_requests_processed_df = bid_requests_df \
-        .withColumn("processed_data", when(col("advertiser_id").isNull(), "invalid").otherwise("valid"))
+    # Extract month from timestamp
+    bid_requests_df = bid_requests_df.withColumn("month", month(to_timestamp("timestamp")))
+    
+    # Add a new field
+    bid_requests_df = bid_requests_df.withColumn("region", lit("US"))
+    
+    # Print the modified DataFrame
+    print(f"Processed Bid Requests batch #{batch_id}:")
+    bid_requests_df.show(5)
 
-    # Show processed data and write to storage
-    print(f"Processed-{batch_id}  Bid Requests:")
-    bid_requests_processed_df.show(5)
+    # Increment Prometheus counter
+    processed_bid_requests_counter.inc(bid_requests_df.count())
 
-    # Store processed data locally (example: writing to Parquet files)
-    bid_requests_processed_df.write.mode('append').parquet("processed_data/bid_requests")
+    # Store processed data locally
+    bid_requests_df.write.mode('append').parquet("processed_data/bid_requests")
+
 
 def setup_error_handling():
     # Example: Set up error handling and monitoring (placeholder)
     print("Error handling and monitoring setup")
 
 if __name__ == "__main__":
+    # Start Prometheus server
+    start_http_server(8000)
+
     # Spark session
     spark = SparkSession.builder \
         .appName("RealTimeDataProcessing") \
