@@ -2,3 +2,4 @@ spark-*
 kafka_*
 outputs
 processed_data
+Data_injection/__pycache__
