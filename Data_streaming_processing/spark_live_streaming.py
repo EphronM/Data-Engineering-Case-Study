@@ -4,6 +4,7 @@ from pyspark.sql.types import StructType, StringType
 from pyspark.sql.functions import when
 from pyspark.sql.functions import to_timestamp, month, lit
 from prometheus_client import start_http_server, Counter
+from pyspark.sql.functions import month, weekofyear, to_timestamp, lit, date_format, hour, when
 
 # Define Prometheus metrics
 processed_ad_impressions_counter = Counter('processed_ad_impressions', 'Number of processed ad impressions')
@@ -15,7 +16,10 @@ processed_bid_requests_counter = Counter('processed_bid_requests', 'Number of pr
 
 def process_ad_impressions(ad_impressions_df, batch_id):
     # Extract month from timestamp
-    ad_impressions_df = ad_impressions_df.withColumn("month", month(to_timestamp("timestamp")))
+    ad_impressions_df = ad_impressions_df.withColumn("month", date_format(to_timestamp("timestamp"), "MMMM"))
+    
+    # Add a new field to represent the day of the week
+    ad_impressions_df = ad_impressions_df.withColumn("day_of_week", date_format(to_timestamp("timestamp"), "EEEE"))
     
     # Add a new field
     ad_impressions_df = ad_impressions_df.withColumn("platform", lit("web"))
@@ -28,16 +32,24 @@ def process_ad_impressions(ad_impressions_df, batch_id):
     processed_ad_impressions_counter.inc(ad_impressions_df.count())
 
     # Store processed data locally
-    ad_impressions_df.write.mode('append').parquet("processed_data/ad_impressions")
+    ad_impressions_df.write.mode('append').parquet("Data_storage/Live_data/ad_impressions")
 
 
 def process_clicks_conversions(clicks_conversions_df, batch_id):
+    
     # Extract month from timestamp
-    clicks_conversions_df = clicks_conversions_df.withColumn("month", month(to_timestamp("timestamp")))
+    clicks_conversions_df = clicks_conversions_df.withColumn("month", date_format(to_timestamp("timestamp"), "MMMM"))
     
     # Add a new field
     clicks_conversions_df = clicks_conversions_df.withColumn("event_type", lit("click"))
-    
+
+    # Categorize periods of the day directly
+    clicks_conversions_df = clicks_conversions_df.withColumn("period_of_day", 
+        when((hour(to_timestamp("conversion_time")) >= 0) & (hour(to_timestamp("conversion_time")) < 6), "night")
+        .when((hour(to_timestamp("conversion_time")) >= 6) & (hour(to_timestamp("conversion_time")) < 12), "morning")
+        .when((hour(to_timestamp("conversion_time")) >= 12) & (hour(to_timestamp("conversion_time")) < 18), "afternoon")
+        .otherwise("evening")
+    )
     # Print the modified DataFrame
     print(f"Processed Clicks/Conversions batch #{batch_id}:")
     clicks_conversions_df.show(5)
@@ -46,11 +58,18 @@ def process_clicks_conversions(clicks_conversions_df, batch_id):
     processed_clicks_conversions_counter.inc(clicks_conversions_df.count())
 
     # Store processed data locally
-    clicks_conversions_df.write.mode('append').parquet("processed_data/clicks_conversions")
+    clicks_conversions_df.write.mode('append').parquet("Data_storage/Live_data/clicks_conversions")
 
 def process_bid_requests(bid_requests_df, batch_id):
     # Extract month from timestamp
-    bid_requests_df = bid_requests_df.withColumn("month", month(to_timestamp("timestamp")))
+    bid_requests_df = bid_requests_df.withColumn("month", date_format(to_timestamp("timestamp"), "MMMM"))
+
+    # Categorize bid amount into sections
+    bid_requests_df = bid_requests_df.withColumn("bid_category", 
+        when(col("bid_amount") <= 2, "small")
+        .when((col("bid_amount") > 2) & (col("bid_amount") <= 5), "medium")
+        .otherwise("large")
+    )
     
     # Add a new field
     bid_requests_df = bid_requests_df.withColumn("region", lit("US"))
@@ -63,7 +82,7 @@ def process_bid_requests(bid_requests_df, batch_id):
     processed_bid_requests_counter.inc(bid_requests_df.count())
 
     # Store processed data locally
-    bid_requests_df.write.mode('append').parquet("processed_data/bid_requests")
+    bid_requests_df.write.mode('append').parquet("Data_storage/Live_data/bid_requests")
 
 
 def setup_error_handling():

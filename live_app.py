@@ -68,7 +68,7 @@ def display_processed_data(directory):
 
 st.title('Processed Data Viewer')
 
-processed_data_dir = "processed_data"
+processed_data_dir = "Data_storage/Live_data"
 
 ad_impressions_dir = os.path.join(processed_data_dir, "ad_impressions")
 bid_requests_dir = os.path.join(processed_data_dir, "bid_requests")
@@ -77,8 +77,9 @@ clicks_conversions_dir = os.path.join(processed_data_dir, "clicks_conversions")
 if st.button('View Ad Impressions'):
     display_processed_data(ad_impressions_dir)
 
+if st.button('View Clicks/Conversions'):
+    display_processed_data(clicks_conversions_dir)
+
 if st.button('View Bid Requests'):
     display_processed_data(bid_requests_dir)
 
-if st.button('View Clicks/Conversions'):
-    display_processed_data(clicks_conversions_dir)

@@ -3,3 +3,4 @@ kafka_*
 outputs
 processed_data
 Data_injection/__pycache__
+Data_storage

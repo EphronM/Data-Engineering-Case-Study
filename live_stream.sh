@@ -12,6 +12,7 @@ sleep 10
 cd ..
 
 
+
 # Start Spark Streaming application
 echo " >> Starting Spark Streaming application..."
 spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.2.0 Data_streaming_processing/spark_live_streaming.py &
@@ -22,3 +23,4 @@ sleep 20
 # Run Streamlit application
 echo " >> Running Streamlit application..."
 streamlit run live_app.py
+
